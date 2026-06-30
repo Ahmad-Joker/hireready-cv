@@ -7,15 +7,42 @@ import Button from "../../components/Button";
 import ScoreCard from "../../components/ScoreCard";
 import { reportData } from "../../lib/reportData";
 
-const storageKey = "hireready-cv-report";
+const legacyStorageKey = "hireready-cv-report";
+const generatedStorageKey = "hireready_generated_report";
 
 function getStoredReport() {
   try {
-    const stored = window.localStorage.getItem(storageKey);
+    const stored =
+      window.localStorage.getItem(generatedStorageKey) ||
+      window.localStorage.getItem(legacyStorageKey);
     return stored ? JSON.parse(stored) : null;
   } catch {
     return null;
   }
+}
+
+function getStatusClass(status) {
+  if (status === "Good") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "Missing") return "border-red-200 bg-red-50 text-red-700";
+  return "border-amber-200 bg-amber-50 text-amber-700";
+}
+
+function ListCard({ title, items = [], ordered = false }) {
+  const ListTag = ordered ? "ol" : "ul";
+
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-xl font-black tracking-tight text-ink">{title}</h2>
+      <ListTag className={`${ordered ? "list-decimal pl-5" : "space-y-3"} mt-4 text-slate-600`}>
+        {items.map((item) => (
+          <li key={item} className={ordered ? "pl-1 leading-7" : "flex gap-3 leading-7"}>
+            {ordered ? null : <span className="mt-2 h-2 w-2 flex-none rounded-full bg-action" />}
+            <span>{item}</span>
+          </li>
+        ))}
+      </ListTag>
+    </article>
+  );
 }
 
 export default function ReportPage() {
@@ -38,7 +65,7 @@ export default function ReportPage() {
         <section className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
             <p className="mb-4 inline-flex rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-action shadow-sm">
-              {isGenerated ? "Rule-based report" : "Sample report"}
+              {isGenerated ? "Generated from your uploaded CV" : "Sample report"}
             </p>
             <h1 className="text-4xl font-black tracking-tight text-ink sm:text-5xl">
               {isGenerated ? "Your CV Report" : "Sample CV Report"}
@@ -48,6 +75,11 @@ export default function ReportPage() {
                 ? "This report uses extracted PDF text and transparent rules. No AI or backend processing is used."
                 : "This preview uses illustrative data to show how your CV analysis will appear."}
             </p>
+            <div className="mt-6">
+              <Button href="/analyze" variant={isGenerated ? "primary" : "secondary"}>
+                Analyze Another CV
+              </Button>
+            </div>
           </div>
 
           {isGenerated ? (
@@ -73,7 +105,7 @@ export default function ReportPage() {
             </article>
           ) : null}
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {report.scores.map((item) => (
               <ScoreCard key={item.label} {...item} />
             ))}
@@ -83,13 +115,27 @@ export default function ReportPage() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 ["Words", report.checks?.wordCount ?? 0],
-                ["Contact", report.checks?.hasEmail && report.checks?.hasPhone ? "Email + phone" : "Incomplete"],
-                ["Sections", [
-                  report.checks?.hasSkills ? "Skills" : null,
-                  report.checks?.hasExperience ? "Experience" : null,
-                  report.checks?.hasEducation ? "Education" : null,
-                ].filter(Boolean).join(", ") || "Needs structure"],
-                ["Measurable results", report.checks?.achievementCount ?? 0],
+                [
+                  "Contact",
+                  report.checks?.hasEmail && report.checks?.hasPhone
+                    ? "Email + phone"
+                    : "Incomplete",
+                ],
+                [
+                  "Sections",
+                  [
+                    report.checks?.hasSkills ? "Skills" : null,
+                    report.checks?.hasExperience ? "Experience" : null,
+                    report.checks?.hasProjects ? "Projects" : null,
+                    report.checks?.hasEducation ? "Education" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ") || "Needs structure",
+                ],
+                [
+                  "Impact signals",
+                  `${report.checks?.achievementCount ?? 0} numbers / ${report.checks?.actionVerbCount ?? 0} verbs`,
+                ],
               ].map(([label, value]) => (
                 <article key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
@@ -99,20 +145,30 @@ export default function ReportPage() {
             </div>
           ) : null}
 
+          {isGenerated && report.scoreExplanation?.length ? (
+            <article className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-black tracking-tight text-ink">Score Explanation</h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                {report.scoreExplanation.map((item) => (
+                  <p key={item} className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                    {item}
+                  </p>
+                ))}
+              </div>
+            </article>
+          ) : null}
+
           <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_1fr]">
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-xl font-black tracking-tight text-ink">Summary</h2>
               <p className="mt-4 leading-7 text-slate-600">{report.summary}</p>
             </article>
 
-            <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-black tracking-tight text-ink">Top Problems</h2>
-              <ol className="mt-4 list-decimal space-y-3 pl-5 text-slate-600">
-                {report.topProblems.map((problem) => (
-                  <li key={problem} className="pl-1 leading-7">{problem}</li>
-                ))}
-              </ol>
-            </article>
+            {isGenerated && report.topStrengths?.length ? (
+              <ListCard title="Top Strengths" items={report.topStrengths} />
+            ) : null}
+
+            <ListCard title="Top Problems" items={report.topProblems} ordered />
 
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-xl font-black tracking-tight text-ink">
@@ -130,20 +186,62 @@ export default function ReportPage() {
               </div>
             </article>
 
-            <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-black tracking-tight text-ink">Suggested Improvements</h2>
-              <ul className="mt-4 space-y-3 text-slate-600">
-                {report.suggestedImprovements.map((improvement) => (
-                  <li key={improvement} className="flex gap-3 leading-7">
-                    <span className="mt-1 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-success text-xs font-black text-white">
-                      ✓
-                    </span>
-                    <span>{improvement}</span>
-                  </li>
-                ))}
-              </ul>
-            </article>
+            <ListCard title="Suggested Improvements" items={report.suggestedImprovements} />
           </div>
+
+          {isGenerated && report.atsFormattingNotes?.length ? (
+            <article className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-black tracking-tight text-ink">ATS Formatting Notes</h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {report.atsFormattingNotes.map((note) => (
+                  <p key={note} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                    {note}
+                  </p>
+                ))}
+              </div>
+            </article>
+          ) : null}
+
+          {isGenerated && report.sectionFeedback?.length ? (
+            <article className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-black tracking-tight text-ink">Section-by-Section Feedback</h2>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                {report.sectionFeedback.map((item) => (
+                  <div key={item.section} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="font-black text-ink">{item.section}</h3>
+                      <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusClass(item.status)}`}>
+                        {item.status}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">{item.feedback}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ) : null}
+
+          {isGenerated && report.actionPlan ? (
+            <article className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-black tracking-tight text-ink">Priority Action Plan</h2>
+              <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                {[
+                  ["Fix first", report.actionPlan.fixFirst],
+                  ["Improve next", report.actionPlan.improveNext],
+                  ["Nice to have", report.actionPlan.niceToHave],
+                ].map(([title, items]) => (
+                  <div key={title} className="rounded-2xl bg-slate-50 p-4">
+                    <h3 className="font-black text-ink">{title}</h3>
+                    <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+                      {items.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ) : null}
 
           {isGenerated ? (
             <article className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

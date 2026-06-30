@@ -69,7 +69,10 @@ export default function AnalyzePage() {
         fileName,
       });
 
-      window.localStorage.setItem("hireready-cv-report", JSON.stringify(report));
+      window.localStorage.setItem("hireready_generated_report", JSON.stringify(report));
+      window.localStorage.setItem("targetRole", targetRole);
+      window.localStorage.setItem("country", country);
+      window.localStorage.setItem("experienceLevel", experienceLevel);
       router.push("/report");
     } catch (analysisError) {
       setError(
